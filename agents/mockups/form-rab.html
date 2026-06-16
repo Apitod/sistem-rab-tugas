@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Pengajuan RAB - SI-RAB Jurusan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e3a5f',
+                        secondary: '#2563eb',
+                        success: '#16a34a',
+                        warning: '#d97706',
+                        danger: '#dc2626',
+                    },
+                    fontFamily: {
+                        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<div class="flex h-screen overflow-hidden">
+
+    <!-- Sidebar (256px) -->
+    <aside class="bg-primary fixed left-0 top-0 h-full w-64 flex-shrink-0 z-30 flex flex-col overflow-y-auto">
+        <div class="p-6 border-b border-white/10">
+            <div class="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-200 flex-shrink-0" fill="none" viewBox="2 2 20 20" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                    <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                </svg>
+                <div>
+                    <h2 class="text-white font-bold text-sm leading-tight">SI-RAB</h2>
+                    <p class="text-blue-200 text-[10px] font-medium">Jurusan Informatika</p>
+                </div>
+            </div>
+        </div>
+
+        <nav class="flex-1 px-3 py-4 space-y-1">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-white/40 px-2 pb-2">Menu Utama</p>
+
+            <a href="dashboard-pengusul.html" class="flex items-center gap-3 px-4 py-2.5 rounded-md text-white/75 hover:bg-white/10 hover:text-white text-sm transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="#" class="flex items-center gap-3 px-4 py-2.5 rounded-md text-white/75 hover:bg-white/10 hover:text-white text-sm transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>RAB Saya</span>
+            </a>
+
+            <a href="form-rab.html" class="flex items-center gap-3 px-4 py-2.5 rounded-md bg-white/15 text-white font-semibold text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Ajukan RAB</span>
+            </a>
+
+            <div class="pt-6">
+                <p class="text-[11px] font-bold uppercase tracking-wider text-white/40 px-2 pb-2">Lainnya</p>
+                <a href="login.html" class="flex items-center gap-3 px-4 py-2.5 rounded-md text-white/75 hover:bg-white/10 hover:text-white text-sm transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span>Keluar</span>
+                </a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 ml-64 flex flex-col min-h-screen">
+        <header class="bg-white border-b border-gray-200 sticky top-0 z-20 px-8 py-4 flex items-center justify-between">
+            <div>
+                <h1 class="text-lg font-bold text-gray-800">Form Pengajuan RAB</h1>
+                <p class="text-xs text-gray-500 mt-0.5">Pengusul: Dr. Ahmad Fauzi, M.T.</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <button class="relative p-2 text-gray-500 hover:text-primary rounded-full hover:bg-gray-100 transition" aria-label="Notifikasi">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span class="absolute -top-0.5 -right-0.5 bg-danger text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">3</span>
+                </button>
+                <div class="h-8 w-8 rounded-full bg-gray-700 text-white font-bold text-sm flex items-center justify-center cursor-pointer">AF</div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <main class="flex-1 p-8">
+
+            <form id="rabForm" onsubmit="return validateForm(event)">
+
+                <!-- Card 1: Data Umum -->
+                <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
+                    <h3 class="text-base font-bold text-gray-800 mb-4 pb-3 border-b border-gray-100">Data Umum</h3>
+
+                    <!-- Judul Kegiatan -->
+                    <div class="mb-5">
+                        <label for="judul_kegiatan" class="block text-sm font-semibold text-gray-600 mb-1.5">Judul Kegiatan <span class="text-danger">*</span></label>
+                        <input type="text" id="judul_kegiatan" name="judul_kegiatan" required
+                               class="w-full border border-gray-300 rounded-md py-2.5 px-3.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-secondary focus:ring-3 focus:ring-blue-100 transition"
+                               placeholder="Masukkan judul kegiatan">
+                        <p id="err-judul" class="text-xs text-danger mt-1 hidden">Judul kegiatan wajib diisi</p>
+                    </div>
+
+                    <!-- Tanggal & File -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label for="tanggal_kegiatan" class="block text-sm font-semibold text-gray-600 mb-1.5">Tanggal Kegiatan <span class="text-danger">*</span></label>
+                            <input type="date" id="tanggal_kegiatan" name="tanggal_kegiatan" required
+                                   class="w-full border border-gray-300 rounded-md py-2.5 px-3.5 text-sm text-gray-700 focus:outline-none focus:border-secondary focus:ring-3 focus:ring-blue-100 transition">
+                            <p id="err-tanggal" class="text-xs text-danger mt-1 hidden">Tanggal wajib dipilih</p>
+                        </div>
+                        <div>
+                            <label for="file_tor" class="block text-sm font-semibold text-gray-600 mb-1.5">Upload TOR (PDF/DOCX, maks 5 MB) <span class="text-danger">*</span></label>
+                            <input type="file" id="file_tor" name="file_tor" accept=".pdf,.docx"
+                                   class="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-secondary hover:file:bg-blue-100 transition cursor-pointer">
+                            <p id="err-file" class="text-xs text-danger mt-1 hidden">File TOR wajib diunggah (PDF/DOCX, maks 5 MB)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Item Anggaran -->
+                <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
+                    <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+                        <h3 class="text-base font-bold text-gray-800">Item Anggaran</h3>
+                        <button type="button" onclick="addRow()" class="inline-flex items-center gap-1.5 bg-secondary hover:bg-blue-700 text-white text-sm font-semibold py-2 px-4 rounded-md transition shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Tambah Item
+                        </button>
+                    </div>
+
+                    <p id="err-item" class="text-xs text-danger mb-3 hidden">Minimal satu item anggaran harus ditambahkan</p>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm" id="itemTable">
+                            <thead>
+                                <tr class="bg-gray-800">
+                                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-50 w-6">#</th>
+                                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-50">Nama Item <span class="text-red-300">*</span></th>
+                                    <th class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-50 w-20">Volume <span class="text-red-300">*</span></th>
+                                    <th class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-50 w-20">Satuan</th>
+                                    <th class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-50 w-36">Harga Satuan <span class="text-red-300">*</span></th>
+                                    <th class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-50 w-36">Total</th>
+                                    <th class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-50 w-16">Hapus</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemBody">
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Total Budget -->
+                    <div class="flex justify-end mt-5 pt-4 border-t border-gray-200">
+                        <div class="text-right">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5">Total Anggaran</p>
+                            <p id="totalAnggaran" class="text-2xl font-bold text-gray-800">Rp 0</p>
+                            <p class="text-xs text-gray-400 mt-0.5">* Total otomatis dihitung dari seluruh item</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="flex items-center justify-end gap-3">
+                    <a href="dashboard-pengusul.html" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-semibold py-2.5 px-5 rounded-md transition">
+                        Batal
+                    </a>
+                    <button type="submit" class="bg-primary hover:bg-[#162d4a] text-white font-semibold py-2.5 px-6 rounded-md text-sm transition shadow-sm">
+                        Ajukan RAB
+                    </button>
+                </div>
+
+            </form>
+
+        </main>
+    </div>
+</div>
+
+<script>
+    let rowCount = 0;
+    const satuanOptions = ['Pilih satuan', 'Unit', 'Paket', 'Orang', 'Buah', 'Lembar', 'Hari', 'Bulan', 'Tahun', 'Liter', 'Kg', 'Meter', 'Kali', 'Set'];
+
+    // Initial one row
+    document.addEventListener('DOMContentLoaded', function() {
+        addRow();
+    });
+
+    function addRow() {
+        rowCount++;
+        const tbody = document.getElementById('itemBody');
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-gray-100 hover:bg-blue-50 transition';
+        tr.id = `item-row-${rowCount}`;
+
+        // Satuan dropdown HTML
+        let satuanHtml = '<select class="w-full border border-gray-300 rounded-md py-2 px-2 text-xs text-gray-700 bg-white focus:outline-none focus:border-secondary focus:ring-3 focus:ring-blue-100 transition" onchange="calcRow(' + rowCount + ')">';
+        satuanOptions.forEach(function(s) {
+            satuanHtml += `<option value="${s}">${s}</option>`;
+        });
+        satuanHtml += '</select>';
+
+        tr.innerHTML = `
+            <td class="px-3 py-2 text-gray-500 text-center text-xs font-mono">${rowCount}</td>
+            <td class="px-3 py-2">
+                <input type="text" name="item_name" placeholder="Nama item"
+                       class="w-full border border-gray-300 rounded-md py-2 px-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:border-secondary focus:ring-3 focus:ring-blue-100 transition">
+            </td>
+            <td class="px-3 py-2 text-center">
+                <input type="number" name="volume" min="1" step="1" value="1"
+                       class="w-20 border border-gray-300 rounded-md py-2 px-2 text-xs text-gray-700 text-center focus:outline-none focus:border-secondary focus:ring-3 focus:ring-blue-100 transition"
+                       onchange="calcRow(${rowCount})" onkeyup="calcRow(${rowCount})">
+            </td>
+            <td class="px-3 py-2 text-center">
+                ${satuanHtml}
+            </td>
+            <td class="px-3 py-2 text-right">
+                <input type="number" name="harga_satuan" min="0" step="500" value="0"
+                       class="w-[130px] border border-gray-300 rounded-md py-2 px-2 text-xs text-gray-700 text-right focus:outline-none focus:border-secondary focus:ring-3 focus:ring-blue-100 transition"
+                       onchange="calcRow(${rowCount})" onkeyup="calcRow(${rowCount})">
+            </td>
+            <td class="px-3 py-2 text-right">
+                <span id="subtotal-${rowCount}" class="font-semibold text-gray-700 text-xs">Rp 0</span>
+            </td>
+            <td class="px-3 py-2 text-center">
+                <button type="button" onclick="removeRow(${rowCount})" class="text-danger hover:text-red-700 p-1 rounded hover:bg-red-50 transition" aria-label="Hapus item">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+        calcTotal();
+    }
+
+    function removeRow(id) {
+        const row = document.getElementById(`item-row-${id}`);
+        if (!row) return;
+        const allRows = document.querySelectorAll('#itemBody tr');
+        if (allRows.length <= 1) {
+            alert('Minimal satu item anggaran harus ada.');
+            return;
+        }
+        row.remove();
+        // Renumber
+        renumberRows();
+        calcTotal();
+    }
+
+    function renumberRows() {
+        const rows = document.querySelectorAll('#itemBody tr');
+        rows.forEach(function(row, index) {
+            const td = row.querySelector('td:first-child');
+            if (td) td.textContent = (index + 1).toString();
+        });
+    }
+
+    function calcRow(id) {
+        const row = document.getElementById(`item-row-${id}`);
+        if (!row) return;
+        const volume = parseFloat(row.querySelector('input[name="volume"]').value) || 0;
+        const harga = parseFloat(row.querySelector('input[name="harga_satuan"]').value) || 0;
+        const subtotal = volume * harga;
+        row.querySelector(`#subtotal-${id}`).textContent = 'Rp ' + formatRupiah(subtotal);
+        calcTotal();
+    }
+
+    function calcTotal() {
+        let total = 0;
+        document.querySelectorAll('[id^="subtotal-"]').forEach(function(el) {
+            const val = parseInt(el.textContent.replace(/[\Rp. ]/g, '')) || 0;
+            total += val;
+        });
+        document.getElementById('totalAnggaran').textContent = 'Rp ' + formatRupiah(total);
+    }
+
+    function formatRupiah(angka) {
+        return angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+
+    function validateForm(e) {
+        let valid = true;
+
+        // Reset errors
+        document.querySelectorAll('[id^="err-"]').forEach(function(el) {
+            el.classList.add('hidden');
+        });
+
+        // Judul
+        const judul = document.getElementById('judul_kegiatan').value.trim();
+        if (!judul) {
+            document.getElementById('err-judul').classList.remove('hidden');
+            valid = false;
+        }
+
+        // Tanggal
+        const tgl = document.getElementById('tanggal_kegiatan').value;
+        if (!tgl) {
+            document.getElementById('err-tanggal').classList.remove('hidden');
+            valid = false;
+        }
+
+        // File TOR
+        const fileInput = document.getElementById('file_tor');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            document.getElementById('err-file').classList.remove('hidden');
+            valid = false;
+        } else {
+            const file = fileInput.files[0];
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['pdf', 'docx'].includes(ext)) {
+                document.getElementById('err-file').textContent = 'Format file harus PDF atau DOCX';
+                document.getElementById('err-file').classList.remove('hidden');
+                valid = false;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                document.getElementById('err-file').textContent = 'Ukuran file tidak boleh melebihi 5 MB';
+                document.getElementById('err-file').classList.remove('hidden');
+                valid = false;
+            }
+        }
+
+        // Minimal satu item
+        const items = document.querySelectorAll('#itemBody tr');
+        if (items.length === 0) {
+            document.getElementById('err-item').classList.remove('hidden');
+            valid = false;
+        }
+
+        // Check each item row: name must not be empty, volume > 0, harga > 0
+        let itemEmpty = false;
+        items.forEach(function(row) {
+            const nama = row.querySelector('input[name="item_name"]').value.trim();
+            const vol = parseFloat(row.querySelector('input[name="volume"]').value) || 0;
+            const harga = parseFloat(row.querySelector('input[name="harga_satuan"]').value) || 0;
+            if (!nama || vol <= 0 || harga <= 0) {
+                itemEmpty = true;
+            }
+        });
+        if (itemEmpty) {
+            if (!document.getElementById('err-item').classList.contains('hidden') === false) {
+                // only show if not already shown
+                document.getElementById('err-item').textContent = 'Semua item anggaran harus diisi lengkap (nama, volume > 0, harga satuan > 0)';
+                document.getElementById('err-item').classList.remove('hidden');
+            }
+            valid = false;
+        }
+
+        if (!valid) {
+            e.preventDefault();
+            // Scroll to top to show error
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return false;
+        }
+
+        // Success
+        alert('RAB berhasil diajukan! Menunggu verifikasi Kaprodi.');
+        return true;
+    }
+</script>
+
+</body>
+</html>
