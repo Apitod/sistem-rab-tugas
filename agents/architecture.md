@@ -1,116 +1,90 @@
-# Arsitektur Proyek: Sistem Informasi RAB Jurusan
+# Arsitektur Sistem Informasi RAB Jurusan
 
-## 1. Gambaran Umum
+## Overview
 
-Proyek ini adalah aplikasi web berbasis Laravel untuk manajemen Rencana Anggaran Biaya (RAB) jurusan dengan alur persetujuan multi-step (multi-role approval workflow).
-
-### Stack Teknologi
-- **Backend**: Laravel 11 (PHP 8.2+)
-- **Database**: MySQL 8.x (localhost)
-- **Auth**: Laravel Breeze (session-based)
-- **Frontend**: Blade + Tailwind CSS + Alpine.js
-- **Export**: barryvdh/laravel-dompdf + maatwebsite/excel
-- **E-signature**: signature_pad.js → simpan PNG ke storage
+Sistem Informasi RAB Jurusan adalah aplikasi web berbasis Laravel 13 yang mengelola proses pengajuan, verifikasi bertahap, dan persetujuan Rencana Anggaran Biaya (RAB) pada tingkat jurusan. Sistem mendukung lima peran pengguna (pengusul, kaprodi, wd_keuangan, dekan, tata_usaha) dengan alur approval multi-level, unggah dokumen TOR (PDF), tanda tangan elektronik berbasis kanvas, ekspor laporan PDF/Excel, peringatan dini pagu anggaran, dan sinkronisasi otomatis data aset saat RAB disetujui Dekan — semuanya menggunakan notifikasi in-app tanpa SMTP maupun WhatsApp.
 
 ---
 
-## 2. Diagram Alur Data (ASCII)
+## Alur Data (ASCII Diagram)
 
 ```
-┌─────────────┐     HTTP Request
-│   Browser   │──────────────────────────────────────────────────┐
-└─────────────┘                                                   │
-                                                                  ▼
-                                                      ┌─────────────────────┐
-                                                      │   routes/web.php    │
-                                                      │  (Route Groups)     │
-                                                      └────────┬────────────┘
-                                                               │
-                                              ┌────────────────▼────────────────┐
-                                              │         Middleware Stack         │
-                                              │  1. web (session, csrf, etc.)   │
-                                              │  2. auth (Laravel built-in)     │
-                                              │  3. CheckRole (custom)          │
-                                              └────────────────┬────────────────┘
-                                                               │
-                                              ┌────────────────▼────────────────┐
-                                              │           Controller            │
-                                              │  - Validasi input (FormRequest) │
-                                              │  - Panggil Service              │
-                                              │  - Return response/view         │
-                                              └────────────────┬────────────────┘
-                                                               │
-                                              ┌────────────────▼────────────────┐
-                                              │          Service Layer          │
-                                              │  - Business logic               │
-                                              │  - Fire Events                  │
-                                              │  - Orchestrate Models           │
-                                              └────┬───────────────────┬────────┘
-                                                   │                   │
-                                    ┌──────────────▼──┐    ┌──────────▼──────────┐
-                                    │     Models       │    │   Event/Listener    │
-                                    │  (Eloquent ORM)  │    │  (Asset Sync, dll.) │
-                                    └──────────────┬──┘    └─────────────────────┘
-                                                   │
-                                    ┌──────────────▼──┐
-                                    │    Database      │
-                                    │    (MySQL)       │
-                                    └─────────────────┘
-```
-
-### Alur Status RAB
-```
-[Pengusul] → SUBMIT
-    │
-    ▼
-pending_kaprodi
-    │ Kaprodi APPROVE
-    ▼
-pending_wd
-    │ WD Keuangan APPROVE
-    ▼
-pending_dekan
-    │ Dekan APPROVE ──────────────────────→ [Event: RabApproved]
-    ▼                                              │
-  disetujui                                        ▼
-                                         [Listener: SyncAssetsToTable]
-                                                   │
-                                                   ▼
-                                         salin rab_details → assets
-
-Setiap step bisa: REVISI (kembalikan ke pengusul) atau TOLAK
+HTTP Request
+    |
+    v
++-------------------+
+|    Middleware      |  auth (Breeze session)
+|    Pipeline        |  CheckRole (validasi users.role)
++-------------------+
+    |
+    v
++-------------------+
+|    Controller      |  app/Http/Controllers/<Fitur>/
+|                   |  Terima input, delegasi ke Service
++-------------------+
+    |
+    v
++-------------------+
+|    Service Layer   |  app/Services/
+|                   |  RabWorkflowService
+|                   |  AssetSyncService
+|                   |  NotificationService
++-------------------+
+    |
+    v
++-------------------+
+|    Model / ORM     |  app/Models/
+|                   |  Eloquent + Relationship
++-------------------+
+    |
+    v
++-------------------+
+|    Database        |  MySQL (localhost)
+|                   |  users, rab_proposals, rab_details,
+|                   |  verification_logs, notifications, assets
++-------------------+
+    |
+    v
+HTTP Response (Blade View / JSON / File Download)
 ```
 
 ---
 
-## 3. Struktur Folder Wajib
+## Struktur Folder Wajib
 
-Semua agent WAJIB mengikuti struktur berikut:
+Semua agent WAJIB mengikuti struktur berikut. Jangan buat file di luar pola ini tanpa diskusi.
 
 ```
-/home/dzul/Documents/tugas-apsi-web/
+tugas-apsi-web/
+├── agents/                         # Dokumentasi arsitektur & konvensi (agent artifacts)
+│   ├── architecture.md
+│   ├── conventions.md
+│   └── middleware-flow.md
+│
 ├── app/
 │   ├── Events/
-│   │   └── RabApproved.php
+│   │   └── RabProposalApproved.php
 │   ├── Http/
 │   │   ├── Controllers/
-│   │   │   ├── Auth/                    # (Breeze — jangan diubah)
-│   │   │   ├── DashboardController.php
-│   │   │   ├── RabProposalController.php
-│   │   │   ├── RabDetailController.php
-│   │   │   ├── ApprovalController.php
-│   │   │   ├── NotificationController.php
-│   │   │   ├── AssetController.php
-│   │   │   └── ExportController.php
+│   │   │   ├── Auth/               # Di-generate Breeze
+│   │   │   ├── Pengusul/
+│   │   │   │   └── RabController.php
+│   │   │   ├── Kaprodi/
+│   │   │   │   └── RabController.php
+│   │   │   ├── WdKeuangan/
+│   │   │   │   └── RabController.php
+│   │   │   ├── Dekan/
+│   │   │   │   └── RabController.php
+│   │   │   └── TataUsaha/
+│   │   │       ├── LaporanController.php
+│   │   │       └── AsetController.php
 │   │   ├── Middleware/
-│   │   │   └── CheckRole.php           # ← dibuat di task ini
+│   │   │   └── CheckRole.php
 │   │   └── Requests/
-│   │       ├── StoreRabProposalRequest.php
-│   │       ├── UpdateRabProposalRequest.php
-│   │       ├── StoreRabDetailRequest.php
-│   │       └── ApprovalRequest.php
+│   │       ├── StoreRabRequest.php
+│   │       └── VerifyRabRequest.php
 │   ├── Listeners/
-│   │   └── SyncAssetsToTable.php
+│   │   └── SyncAssetsOnApproval.php
 │   ├── Models/
 │   │   ├── User.php
 │   │   ├── RabProposal.php
@@ -118,207 +92,165 @@ Semua agent WAJIB mengikuti struktur berikut:
 │   │   ├── VerificationLog.php
 │   │   ├── Notification.php
 │   │   └── Asset.php
+│   ├── Providers/
+│   │   └── AppServiceProvider.php  # Daftarkan Event/Listener di sini
 │   └── Services/
-│       ├── RabService.php
-│       ├── ApprovalService.php
-│       ├── NotificationService.php
-│       ├── AssetService.php
-│       └── ExportService.php
+│       ├── RabWorkflowService.php
+│       ├── AssetSyncService.php
+│       └── NotificationService.php
+│
+├── bootstrap/
+│   └── app.php                     # Alias middleware CheckRole didaftarkan di sini
+│
 ├── database/
 │   ├── migrations/
-│   │   ├── xxxx_create_users_table.php         # (default Laravel, dimodifikasi)
+│   │   ├── xxxx_create_users_table.php
 │   │   ├── xxxx_create_rab_proposals_table.php
 │   │   ├── xxxx_create_rab_details_table.php
 │   │   ├── xxxx_create_verification_logs_table.php
 │   │   ├── xxxx_create_notifications_table.php
 │   │   └── xxxx_create_assets_table.php
 │   └── seeders/
-│       ├── DatabaseSeeder.php
-│       └── UserSeeder.php
+│       └── UserSeeder.php          # Seed 5 role user
+│
+├── public/
+│   └── signature/                  # Hasil simpan canvas e-sign (PNG)
+│
 ├── resources/
+│   ├── js/
+│   │   └── signature_pad.js        # Library e-signature
 │   └── views/
-│       ├── layouts/
-│       │   ├── app.blade.php
-│       │   └── guest.blade.php
-│       ├── components/
-│       │   ├── nav-link.blade.php
-│       │   └── alert.blade.php
-│       ├── dashboard/
-│       │   └── index.blade.php
-│       ├── rab/
-│       │   ├── index.blade.php
-│       │   ├── create.blade.php
-│       │   ├── edit.blade.php
-│       │   ├── show.blade.php
-│       │   └── partials/
-│       │       └── detail-row.blade.php
-│       ├── approval/
-│       │   ├── index.blade.php
-│       │   └── show.blade.php
-│       ├── notifications/
-│       │   └── index.blade.php
-│       └── assets/
-│           └── index.blade.php
+│       ├── auth/                   # Di-generate Breeze
+│       ├── pengusul/
+│       │   ├── dashboard.blade.php
+│       │   └── rab/
+│       │       ├── index.blade.php
+│       │       ├── create.blade.php
+│       │       └── show.blade.php
+│       ├── kaprodi/
+│       │   ├── dashboard.blade.php
+│       │   └── rab/
+│       │       ├── index.blade.php
+│       │       └── show.blade.php
+│       ├── wd/
+│       │   ├── dashboard.blade.php
+│       │   └── rab/
+│       │       ├── index.blade.php
+│       │       └── show.blade.php
+│       ├── dekan/
+│       │   ├── dashboard.blade.php
+│       │   └── rab/
+│       │       ├── index.blade.php
+│       │       └── show.blade.php
+│       └── tu/
+│           ├── dashboard.blade.php
+│           ├── laporan/
+│           │   └── index.blade.php
+│           └── aset/
+│               └── index.blade.php
+│
 ├── routes/
-│   └── web.php                          # ← scaffold di task ini
-├── storage/
-│   └── app/public/
-│       ├── tor/                         # upload PDF TOR
-│       └── signatures/                  # simpan PNG e-signature
-└── agents/
-    ├── architecture.md                  # ← file ini
-    ├── conventions.md
-    ├── middleware-flow.md
-    └── *.md                             # brief per agent
+│   ├── web.php                     # Routing utama (5 group role)
+│   └── console.php
+│
+└── storage/
+    └── app/
+        └── tor/                    # Upload TOR PDF disimpan di sini
 ```
 
 ---
 
-## 4. Alur Data End-to-End
+## Service Classes
 
-```
-HTTP Request
-    │
-    ├─ routes/web.php ──→ middleware(['auth', 'role:pengusul'])
-    │                                    │
-    │                         ┌──────────▼──────────┐
-    │                         │    CheckRole.php     │
-    │                         │  auth()->user()->role│
-    │                         │  === param?          │
-    │                         │  NO → redirect('/')  │
-    │                         └──────────┬──────────┘
-    │                                    │ YES
-    │                         ┌──────────▼──────────┐
-    │                         │   FormRequest        │
-    │                         │  (validate input)    │
-    │                         └──────────┬──────────┘
-    │                                    │ valid
-    │                         ┌──────────▼──────────┐
-    │                         │    Controller        │
-    │                         │  $service->method()  │
-    │                         └──────────┬──────────┘
-    │                                    │
-    │                         ┌──────────▼──────────┐
-    │                         │   Service Layer      │
-    │                         │  business logic      │
-    │                         │  event()->fire()     │
-    │                         └──────────┬──────────┘
-    │                                    │
-    │              ┌─────────────────────┼──────────────────┐
-    │              │                     │                  │
-    │    ┌─────────▼──────┐   ┌──────────▼──────┐  ┌───────▼───────┐
-    │    │  Eloquent Model │   │  Event Dispatch  │  │  Notification │
-    │    │  (DB Query)     │   │  RabApproved     │  │  Service      │
-    │    └─────────┬──────┘   └──────────┬──────┘  └───────────────┘
-    │              │                     │
-    │    ┌─────────▼──────┐   ┌──────────▼──────┐
-    │    │    MySQL DB     │   │  Listener:       │
-    │    └────────────────┘   │  SyncAssetsTo... │
-    │                         └─────────────────┘
-    │
-    └─→ view()->with($data) / redirect()->with('success', ...)
-```
+### RabWorkflowService (`app/Services/RabWorkflowService.php`)
+Mengelola seluruh alur status RAB:
+- `submit(User $user, array $data): RabProposal` — pengusul buat RAB baru (status: pending_kaprodi)
+- `verifyByKaprodi(RabProposal $rab, string $action, ?string $catatan): void` — approve/revisi
+- `verifyByWd(RabProposal $rab, string $action, ?string $catatan): void` — approve/tolak
+- `verifyByDekan(RabProposal $rab, string $signatureData): void` — setujui + simpan e-sign → fire RabProposalApproved
+
+### AssetSyncService (`app/Services/AssetSyncService.php`)
+Dipanggil oleh Listener saat RAB disetujui:
+- `syncFromRab(RabProposal $rab): void` — salin semua RabDetail → tabel assets
+
+### NotificationService (`app/Services/NotificationService.php`)
+Notifikasi in-app (tanpa SMTP/WA):
+- `send(User $recipient, string $message, ?string $link): Notification`
+- `markRead(int $notificationId): void`
+- `getUnread(User $user): Collection`
 
 ---
 
-## 5. Daftar Service Class
+## Events & Listeners
 
-| Service | File | Tanggung Jawab |
-|---------|------|----------------|
-| RabService | `app/Services/RabService.php` | CRUD RAB proposal, upload TOR PDF, kalkulasi total |
-| ApprovalService | `app/Services/ApprovalService.php` | Transisi status, catat VerificationLog, fire event |
-| NotificationService | `app/Services/NotificationService.php` | Buat notifikasi in-app, tandai read/unread |
-| AssetService | `app/Services/AssetService.php` | Salin rab_details ke assets, cek pagu anggaran |
-| ExportService | `app/Services/ExportService.php` | Generate PDF (dompdf), generate Excel (maatwebsite) |
+| Event                  | Listener                  | Trigger                          |
+|------------------------|---------------------------|----------------------------------|
+| RabProposalApproved    | SyncAssetsOnApproval      | Dekan approve RAB (e-sign done)  |
 
----
-
-## 6. Daftar Event & Listener
-
-| Event | File | Trigger |
-|-------|------|---------|
-| RabApproved | `app/Events/RabApproved.php` | ApprovalService saat Dekan approve |
-
-| Listener | File | Pada Event |
-|----------|------|-----------|
-| SyncAssetsToTable | `app/Listeners/SyncAssetsToTable.php` | RabApproved |
-| SendApprovalNotification | `app/Listeners/SendApprovalNotification.php` | RabApproved (dan setiap approval step) |
-
-Registrasi di `app/Providers/EventServiceProvider.php`:
+Daftarkan di `AppServiceProvider::boot()`:
 ```php
-protected $listen = [
-    \App\Events\RabApproved::class => [
-        \App\Listeners\SyncAssetsToTable::class,
-        \App\Listeners\SendApprovalNotification::class,
-    ],
-];
+Event::listen(
+    RabProposalApproved::class,
+    SyncAssetsOnApproval::class,
+);
 ```
 
 ---
 
-## 7. Package Dependencies (Composer)
+## Package Dependencies
 
-```json
-{
-    "require": {
-        "php": "^8.2",
-        "laravel/framework": "^11.0",
-        "laravel/breeze": "^2.0",
-        "barryvdh/laravel-dompdf": "^2.0",
-        "maatwebsite/excel": "^3.1"
-    },
-    "require-dev": {
-        "fakerphp/faker": "^1.23",
-        "laravel/pint": "^1.0",
-        "phpunit/phpunit": "^11.0"
-    }
-}
-```
+| Package                    | Versi    | Kegunaan                        |
+|----------------------------|----------|---------------------------------|
+| laravel/breeze             | ^2.x     | Autentikasi (login/register)    |
+| barryvdh/laravel-dompdf    | ^3.x     | Export PDF laporan RAB          |
+| maatwebsite/excel          | ^3.x     | Export Excel laporan RAB        |
 
-Install commands:
+Install:
 ```bash
+composer require barryvdh/laravel-dompdf maatwebsite/excel
 composer require laravel/breeze --dev
 php artisan breeze:install blade
-composer require barryvdh/laravel-dompdf
-composer require maatwebsite/excel
-npm install signature_pad
-npm run build
 ```
 
 ---
 
-## 8. Strategi Autentikasi
+## Strategi Autentikasi
 
-- **Driver**: Laravel session-based auth (bawaan)
-- **Package**: Laravel Breeze (blade stack) — minimal, mudah dikustomisasi
-- **Kolom tambahan di tabel `users`**:
-  - `role` ENUM('pengusul','kaprodi','wd_keuangan','dekan','tata_usaha')
-  - `jurusan` VARCHAR(100)
-- **Guard**: default `web`
-- **Middleware auth**: `auth` (bawaan) → redirect ke `/login` jika belum login
-- **Middleware role**: `CheckRole` custom → redirect ke `/` dengan flash error jika role tidak sesuai
-- **Password reset**: gunakan Breeze built-in (email driver = log untuk development)
+- Menggunakan **Laravel Breeze** dengan stack Blade (email + password).
+- Kolom `users.role` bertipe `ENUM('pengusul','kaprodi','wd_keuangan','dekan','tata_usaha')`.
+- Setelah login, middleware `auth` memvalidasi sesi, lalu `CheckRole` memvalidasi `users.role` sesuai route group yang diakses.
+- Redirect pasca-login diarahkan ke `/dashboard` yang secara dinamis forward ke `{role}.dashboard` berdasarkan nilai `auth()->user()->role`.
+- Tidak ada OAuth, API token, atau JWT — murni session-based Breeze.
 
 ---
 
-## 9. Skema Database (Ringkasan)
+## Alur Status RAB
 
-| Tabel | Kolom Utama |
-|-------|-------------|
-| users | id, name, email, password, role, jurusan |
-| rab_proposals | id, user_id, judul, total_pagu, tor_path, status, signature_path, submitted_at |
-| rab_details | id, rab_proposal_id, nama_item, volume, satuan, harga_satuan, subtotal |
-| verification_logs | id, rab_proposal_id, user_id, action, catatan, created_at |
-| notifications | id, user_id, title, body, is_read, related_id, related_type |
-| assets | id, rab_proposal_id, rab_detail_id, nama_item, volume, satuan, harga_satuan, approved_at |
-
----
-
-## 10. Catatan Penting untuk Semua Agent
-
-1. **Jangan** taruh business logic di Controller — semua logic ke Service.
-2. **Selalu** gunakan FormRequest untuk validasi, bukan `$request->validate()` di Controller.
-3. Route naming wajib konsisten: `{prefix}.{resource}.{action}` (lihat conventions.md).
-4. **Semua** redirect dengan pesan menggunakan `->with('success', ...)` atau `->with('error', ...)`.
-5. Storage untuk file upload: `storage/app/public/tor/` dan `storage/app/public/signatures/`.
-6. Jalankan `php artisan storage:link` sekali setelah setup.
+```
+[Pengusul buat RAB]
+        |
+        v
+  pending_kaprodi
+        |
+   Kaprodi review
+   /           \
+approve        revisi
+   |              \
+pending_wd      [kembali ke pengusul]
+   |
+  WD Keuangan review
+  /          \
+approve      tolak
+   |            \
+pending_dekan  [ditolak]
+   |
+  Dekan review + e-sign
+        |
+     disetujui
+        |
+   [Event: RabProposalApproved]
+        |
+   [Listener: SyncAssetsOnApproval]
+        |
+   rab_details → assets
+```
