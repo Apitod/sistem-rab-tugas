@@ -1,0 +1,46 @@
+<?php
+namespace App\Http\Controllers;
+use App\Http\Requests\StoreRabProposalRequest;
+use App\Models\RabProposal;
+use App\Models\RabDetail;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+
+class RabProposalController extends Controller {
+    public function index() {
+        $proposals = RabProposal::where('user_id', auth()->id())->latest()->get();
+        return view('rab.index', compact('proposals'));
+    }
+    public function create() {
+        return view('rab.create');
+    }
+    public function store(StoreRabProposalRequest $request) {
+        $torPath = $request->file('tor_file')->store('tor', 'public');
+        $proposal = RabProposal::create([
+            'user_id' => auth()->id(),
+            'title' => $request->title,
+            'proposed_date' => $request->proposed_date,
+            'tor_file_path' => $torPath,
+            'status' => 'pending_kaprodi',
+        ]);
+        $totalBudget = 0;
+        foreach ($request->items as $item) {
+            $totalPrice = $item['quantity'] * $item['unit_price'];
+            $totalBudget += $totalPrice;
+            RabDetail::create([
+                'rab_proposal_id' => $proposal->id,
+                'item_name' => $item['item_name'],
+                'quantity' => $item['quantity'],
+                'unit' => $item['unit'],
+                'unit_price' => $item['unit_price'],
+                'total_price' => $totalPrice,
+            ]);
+        }
+        $proposal->update(['total_budget' => $totalBudget]);
+        return redirect()->route('pengusul.rab.index')->with('success', 'RAB berhasil diajukan!');
+    }
+    public function show(string $id) {
+        $proposal = RabProposal::with(['details','verificationLogs.verifier'])->findOrFail($id);
+        return view('rab.show', compact('proposal'));
+    }
+}
