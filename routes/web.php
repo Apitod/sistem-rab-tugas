@@ -15,8 +15,16 @@ Route::get('/', function () {
 Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', function () {
+        $roleRouteMap = [
+            'pengusul'    => 'pengusul.dashboard',
+            'kaprodi'     => 'kaprodi.dashboard',
+            'wd_keuangan' => 'wd.dashboard',
+            'dekan'       => 'dekan.dashboard',
+            'tata_usaha'  => 'tu.dashboard',
+        ];
         $role = auth()->user()->role;
-        return redirect()->route($role . '.dashboard');
+        $routeName = $roleRouteMap[$role] ?? 'login';
+        return redirect()->route($routeName);
     })->name('dashboard');
 
     // === PENGUSUL ===
