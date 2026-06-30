@@ -120,13 +120,12 @@
                         @if($d->revision_flag && $role !== 'kaprodi') bg-orange-50 @else hover:bg-gray-50 @endif"
                         data-item-id="{{ $d->id }}">
 
-                        {{-- Checkbox (hanya Kaprodi) --}}
+                        {{-- Checkbox (hanya Kaprodi) — tanpa name, JS yang akan collect --}}
                         @if($role === 'kaprodi' && $proposal->status === 'pending_kaprodi')
                         <td class="px-3 py-3 text-center">
                             <input type="checkbox"
-                                   name="revision_items[{{ $i }}][id]"
-                                   value="{{ $d->id }}"
                                    class="item-checkbox w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400 cursor-pointer"
+                                   data-item-id="{{ $d->id }}"
                                    data-index="{{ $i }}">
                         </td>
                         @endif
@@ -166,7 +165,6 @@
                                 Alasan revisi untuk "<span class="font-semibold">{{ $d->item_name }}</span>"
                             </label>
                             <textarea
-                                name="revision_items[{{ $i }}][reason]"
                                 rows="2"
                                 placeholder="Tuliskan alasan revisi untuk item ini..."
                                 class="reason-textarea w-full border border-orange-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none resize-none"
@@ -435,26 +433,63 @@
 
     // Validasi form sebelum submit: pastikan semua item yang dicentang punya alasan
     document.getElementById('form-revisi').addEventListener('submit', function (e) {
+        e.preventDefault();
+
         const checked = document.querySelectorAll('.item-checkbox:checked');
+
+        // 1. Minimal 1 item harus dipilih
         if (checked.length === 0) {
-            e.preventDefault();
             alert('Pilih minimal 1 item yang perlu direvisi.');
             return;
         }
+
+        // 2. Semua item yang dicentang wajib ada alasannya
         let valid = true;
-        checked.forEach(cb => {
-            const idx = cb.dataset.index;
+        checked.forEach(function(cb) {
+            const idx      = cb.dataset.index;
             const textarea = document.querySelector('#reason-row-' + idx + ' textarea');
             if (!textarea || textarea.value.trim() === '') {
                 valid = false;
-                textarea.focus();
                 textarea.classList.add('border-red-500', 'ring-1', 'ring-red-400');
+                textarea.focus();
+            } else {
+                textarea.classList.remove('border-red-500', 'ring-1', 'ring-red-400');
             }
         });
         if (!valid) {
-            e.preventDefault();
             alert('Isi alasan revisi untuk semua item yang ditandai.');
+            return;
         }
+
+        // 3. Hapus hidden inputs lama (jika ada dari percobaan sebelumnya)
+        var old = this.querySelectorAll('input[name^="revision_items"]');
+        old.forEach(function(el) { el.remove(); });
+
+        // 4. Inject hidden inputs HANYA untuk item yang dicentang (index sequential)
+        var seqIndex = 0;
+        checked.forEach(function(cb) {
+            var itemId   = cb.dataset.itemId;
+            var idx      = cb.dataset.index;
+            var textarea = document.querySelector('#reason-row-' + idx + ' textarea');
+            var reason   = textarea ? textarea.value.trim() : '';
+
+            var inputId   = document.createElement('input');
+            inputId.type  = 'hidden';
+            inputId.name  = 'revision_items[' + seqIndex + '][id]';
+            inputId.value = itemId;
+            document.getElementById('form-revisi').appendChild(inputId);
+
+            var inputReason   = document.createElement('input');
+            inputReason.type  = 'hidden';
+            inputReason.name  = 'revision_items[' + seqIndex + '][reason]';
+            inputReason.value = reason;
+            document.getElementById('form-revisi').appendChild(inputReason);
+
+            seqIndex++;
+        });
+
+        // 5. Submit form setelah hidden inputs siap
+        this.submit();
     });
 })();
 </script>
