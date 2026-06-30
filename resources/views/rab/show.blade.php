@@ -83,9 +83,21 @@
 
     {{-- ================================================================ --}}
     {{-- TABEL RINCIAN ANGGARAN                                           --}}
+    {{-- (Dibungkus form resubmit jika Pengusul & status revisi)          --}}
     {{-- ================================================================ --}}
+    @if($role === 'pengusul' && $proposal->status === 'revisi')
+    <form method="POST" action="{{ route('pengusul.rab.resubmit', $proposal->id) }}" id="form-resubmit">
+    @csrf
+    @endif
+
     <div class="bg-white rounded-xl shadow p-6">
-        <h3 class="font-semibold text-gray-700 mb-4">Rincian Anggaran</h3>
+        <h3 class="font-semibold text-gray-700 mb-4">Rincian Anggaran
+            @if($role === 'pengusul' && $proposal->status === 'revisi' && $revisionCount > 0)
+            <span class="ml-2 text-xs font-normal text-orange-600">
+                <i class="fa-solid fa-pen-to-square"></i> Edit item yang ditandai lalu ajukan ulang
+            </span>
+            @endif
+        </h3>
 
         {{-- Check All (hanya untuk Kaprodi saat pending) --}}
         @if($role === 'kaprodi' && $proposal->status === 'pending_kaprodi')
@@ -131,28 +143,98 @@
                         @endif
 
                         <td class="px-4 py-3 text-gray-400">{{ $i + 1 }}</td>
+
+                        {{-- ─── Nama Item ─── --}}
                         <td class="px-4 py-3 font-medium text-gray-800">
-                            <div class="flex items-center gap-2">
-                                {{-- Badge revisi (untuk Pengusul) --}}
-                                @if($d->revision_flag && $role === 'pengusul')
-                                <span class="inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                                    <i class="fa-solid fa-triangle-exclamation text-[10px]"></i> Perlu Direvisi
-                                </span>
+                            @if($role === 'pengusul' && $proposal->status === 'revisi' && $d->revision_flag)
+                                {{-- Item bermasalah: bisa diedit --}}
+                                <div class="flex items-center gap-1.5 mb-1">
+                                    <span class="inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                        <i class="fa-solid fa-triangle-exclamation text-[10px]"></i> Perlu Direvisi
+                                    </span>
+                                </div>
+                                <input type="text"
+                                       name="items[{{ $i }}][item_name]"
+                                       value="{{ $d->item_name }}"
+                                       required
+                                       class="w-full border border-orange-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none bg-white">
+                                <input type="hidden" name="items[{{ $i }}][id]" value="{{ $d->id }}">
+                                {{-- Tampilkan alasan di bawah input --}}
+                                @if($d->revision_reason)
+                                <div class="mt-1.5 flex items-start gap-1.5 text-orange-700 text-xs bg-orange-50 border border-orange-200 rounded-md px-2.5 py-1.5">
+                                    <i class="fa-solid fa-comment-dots flex-shrink-0 mt-0.5"></i>
+                                    <span>{{ $d->revision_reason }}</span>
+                                </div>
                                 @endif
-                                {{ $d->item_name }}
-                            </div>
-                            {{-- Alasan revisi (untuk Pengusul) --}}
-                            @if($d->revision_flag && $d->revision_reason && $role === 'pengusul')
-                            <div class="mt-1.5 flex items-start gap-1.5 text-orange-700 text-xs bg-orange-50 border border-orange-200 rounded-md px-2.5 py-1.5">
-                                <i class="fa-solid fa-comment-dots flex-shrink-0 mt-0.5"></i>
-                                <span>{{ $d->revision_reason }}</span>
-                            </div>
+                            @else
+                                {{-- Item normal: read-only --}}
+                                <div class="flex items-center gap-2">
+                                    {{ $d->item_name }}
+                                    @if($role === 'pengusul' && $proposal->status === 'revisi' && !$d->revision_flag)
+                                    <span class="text-xs text-gray-400"><i class="fa-solid fa-lock"></i></span>
+                                    @endif
+                                </div>
+                                @if($role === 'pengusul' && $proposal->status === 'revisi')
+                                <input type="hidden" name="items[{{ $i }}][id]" value="{{ $d->id }}">
+                                <input type="hidden" name="items[{{ $i }}][item_name]" value="{{ $d->item_name }}">
+                                <input type="hidden" name="items[{{ $i }}][quantity]" value="{{ $d->quantity }}">
+                                <input type="hidden" name="items[{{ $i }}][unit]" value="{{ $d->unit }}">
+                                <input type="hidden" name="items[{{ $i }}][unit_price]" value="{{ $d->unit_price }}">
+                                @endif
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-center">{{ $d->quantity }}</td>
-                        <td class="px-4 py-3 text-center text-gray-500">{{ $d->unit }}</td>
-                        <td class="px-4 py-3 text-right">Rp {{ number_format($d->unit_price, 0, ',', '.') }}</td>
-                        <td class="px-4 py-3 text-right font-medium">Rp {{ number_format($d->total_price, 0, ',', '.') }}</td>
+
+                        {{-- ─── Qty ─── --}}
+                        <td class="px-4 py-3 text-center">
+                            @if($role === 'pengusul' && $proposal->status === 'revisi' && $d->revision_flag)
+                                <input type="number"
+                                       name="items[{{ $i }}][quantity]"
+                                       value="{{ $d->quantity }}"
+                                       min="1" required
+                                       class="item-qty w-20 border border-orange-300 rounded-lg px-2 py-1.5 text-sm text-center focus:ring-2 focus:ring-orange-400 focus:outline-none"
+                                       data-index="{{ $i }}">
+                            @else
+                                {{ $d->quantity }}
+                            @endif
+                        </td>
+
+                        {{-- ─── Satuan ─── --}}
+                        <td class="px-4 py-3 text-center text-gray-500">
+                            @if($role === 'pengusul' && $proposal->status === 'revisi' && $d->revision_flag)
+                                <input type="text"
+                                       name="items[{{ $i }}][unit]"
+                                       value="{{ $d->unit }}"
+                                       required
+                                       class="w-20 border border-orange-300 rounded-lg px-2 py-1.5 text-sm text-center focus:ring-2 focus:ring-orange-400 focus:outline-none">
+                            @else
+                                {{ $d->unit }}
+                            @endif
+                        </td>
+
+                        {{-- ─── Harga Satuan ─── --}}
+                        <td class="px-4 py-3 text-right">
+                            @if($role === 'pengusul' && $proposal->status === 'revisi' && $d->revision_flag)
+                                <input type="number"
+                                       name="items[{{ $i }}][unit_price]"
+                                       value="{{ (int) $d->unit_price }}"
+                                       min="0" required
+                                       class="item-price w-36 border border-orange-300 rounded-lg px-2 py-1.5 text-sm text-right focus:ring-2 focus:ring-orange-400 focus:outline-none"
+                                       data-index="{{ $i }}">
+                            @else
+                                Rp {{ number_format($d->unit_price, 0, ',', '.') }}
+                            @endif
+                        </td>
+
+                        {{-- ─── Total ─── --}}
+                        <td class="px-4 py-3 text-right font-medium">
+                            @if($role === 'pengusul' && $proposal->status === 'revisi' && $d->revision_flag)
+                                <span id="total-{{ $i }}" class="text-secondary font-semibold">
+                                    Rp {{ number_format($d->total_price, 0, ',', '.') }}
+                                </span>
+                            @else
+                                Rp {{ number_format($d->total_price, 0, ',', '.') }}
+                            @endif
+                        </td>
                     </tr>
 
                     {{-- ─── Baris alasan revisi (hanya Kaprodi, toggle via JS) ─── --}}
@@ -179,13 +261,17 @@
                         <td colspan="{{ ($role === 'kaprodi' && $proposal->status === 'pending_kaprodi') ? 6 : 5 }}"
                             class="px-4 py-3 text-right font-bold text-gray-700">TOTAL ANGGARAN</td>
                         <td class="px-4 py-3 text-right font-bold text-secondary text-base">
-                            Rp {{ number_format($proposal->total_budget, 0, ',', '.') }}
+                            <span id="grand-total">Rp {{ number_format($proposal->total_budget, 0, ',', '.') }}</span>
                         </td>
                     </tr>
                 </tfoot>
             </table>
         </div>
     </div>
+
+    @if($role === 'pengusul' && $proposal->status === 'revisi')
+    </form>
+    @endif
 
     {{-- ================================================================ --}}
     {{-- AKSI KAPRODI                                                      --}}
@@ -330,15 +416,14 @@
     @if($role === 'pengusul' && $proposal->status === 'revisi')
     <div class="bg-white rounded-xl shadow p-6">
         <h3 class="font-semibold text-gray-700 mb-2">Ajukan Ulang</h3>
-        <p class="text-sm text-gray-500 mb-4">Setelah memperbaiki item yang ditandai, ajukan ulang RAB ini untuk diverifikasi kembali oleh Kaprodi.</p>
-        <form method="POST" action="{{ route('pengusul.rab.resubmit', $proposal->id) }}">
-            @csrf
-            <button type="submit"
-                    class="bg-secondary text-white px-5 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
-                    onclick="return confirm('Yakin ingin mengajukan ulang RAB ini?')">
-                <i class="fa-solid fa-paper-plane mr-1"></i> Ajukan Ulang ke Kaprodi
-            </button>
-        </form>
+        <p class="text-sm text-gray-500 mb-4">
+            Perbaiki nilai item yang ditandai oranye di tabel atas, lalu klik tombol di bawah untuk mengajukan ulang.
+        </p>
+        <button type="submit" form="form-resubmit"
+                class="bg-secondary text-white px-5 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                onclick="return confirm('Yakin ingin mengajukan ulang RAB ini? Pastikan semua item yang ditandai sudah diperbaiki.')">
+            <i class="fa-solid fa-paper-plane mr-1"></i> Simpan Perubahan & Ajukan Ulang ke Kaprodi
+        </button>
     </div>
     @endif
 
@@ -494,4 +579,57 @@
 })();
 </script>
 @endif
+
+{{-- JS: Live Total Calculator untuk Pengusul saat mode edit revisi --}}
+@if($role === 'pengusul' && $proposal->status === 'revisi')
+<script>
+(function () {
+    function formatRupiah(n) {
+        return 'Rp ' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+
+    function recalcGrandTotal() {
+        var grand = 0;
+        // Ambil semua span total per-item (yang editable)
+        document.querySelectorAll('[id^="total-"]').forEach(function(span) {
+            var idx = span.id.replace('total-', '');
+            var qtyEl   = document.querySelector('.item-qty[data-index="' + idx + '"]');
+            var priceEl = document.querySelector('.item-price[data-index="' + idx + '"]');
+            if (qtyEl && priceEl) {
+                var total = (parseFloat(qtyEl.value) || 0) * (parseFloat(priceEl.value) || 0);
+                span.textContent = formatRupiah(total);
+                grand += total;
+            }
+        });
+        // Tambahkan total item yang tidak diedit (dari hidden inputs)
+        document.querySelectorAll('input[name$="[unit_price]"][type="hidden"]').forEach(function(priceInput) {
+            var name = priceInput.name; // items[i][unit_price]
+            var match = name.match(/items\[(\d+)\]/);
+            if (!match) return;
+            var idx = match[1];
+            // Hanya hitung jika tidak ada input editable untuk index ini
+            var hasEditable = document.querySelector('.item-price[data-index="' + idx + '"]');
+            if (!hasEditable) {
+                var qtyHidden   = document.querySelector('input[name="items[' + idx + '][quantity]"]');
+                var priceHidden = document.querySelector('input[name="items[' + idx + '][unit_price]"]');
+                if (qtyHidden && priceHidden) {
+                    grand += (parseFloat(qtyHidden.value) || 0) * (parseFloat(priceHidden.value) || 0);
+                }
+            }
+        });
+        var grandEl = document.getElementById('grand-total');
+        if (grandEl) grandEl.textContent = formatRupiah(grand);
+    }
+
+    // Pasang event listener ke semua qty & price editable
+    document.querySelectorAll('.item-qty, .item-price').forEach(function(input) {
+        input.addEventListener('input', recalcGrandTotal);
+    });
+
+    // Hitung sekali saat load
+    recalcGrandTotal();
+})();
+</script>
+@endif
 @endsection
+

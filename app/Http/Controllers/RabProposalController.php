@@ -50,7 +50,7 @@ class RabProposalController extends Controller {
 
     /**
      * Pengusul mengajukan ulang RAB yang berstatus 'revisi'.
-     * Reset semua flag revisi per-item, lalu kembalikan ke pending_kaprodi.
+     * Simpan perubahan item yang diedit, reset flag revisi, kembalikan ke pending_kaprodi.
      */
     public function resubmit(Request $request, string $id) {
         $proposal = RabProposal::where('id', $id)
@@ -58,14 +58,37 @@ class RabProposalController extends Controller {
             ->where('status', 'revisi')
             ->firstOrFail();
 
-        // Reset semua flag revisi per-item
-        $proposal->details()->update([
-            'revision_flag'   => false,
-            'revision_reason' => null,
-        ]);
+        // Simpan perubahan item yang dikirim dari form
+        $totalBudget = 0;
+        foreach ($request->items ?? [] as $itemData) {
+            $detail = RabDetail::where('id', $itemData['id'])
+                ->where('rab_proposal_id', $proposal->id) // keamanan: pastikan item milik proposal ini
+                ->first();
 
-        // Kembalikan ke antrian Kaprodi
-        $proposal->update(['status' => 'pending_kaprodi']);
+            if ($detail) {
+                $qty        = (int)   ($itemData['quantity']   ?? $detail->quantity);
+                $unitPrice  = (float) ($itemData['unit_price'] ?? $detail->unit_price);
+                $totalPrice = $qty * $unitPrice;
+                $totalBudget += $totalPrice;
+
+                $detail->update([
+                    'item_name'  => $itemData['item_name']  ?? $detail->item_name,
+                    'quantity'   => $qty,
+                    'unit'       => $itemData['unit']        ?? $detail->unit,
+                    'unit_price' => $unitPrice,
+                    'total_price'=> $totalPrice,
+                    // Reset flag revisi per-item ini
+                    'revision_flag'   => false,
+                    'revision_reason' => null,
+                ]);
+            }
+        }
+
+        // Update total anggaran proposal
+        $proposal->update([
+            'total_budget' => $totalBudget > 0 ? $totalBudget : $proposal->total_budget,
+            'status'       => 'pending_kaprodi',
+        ]);
 
         return redirect()
             ->route('pengusul.rab.show', $proposal->id)
