@@ -35,6 +35,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/rab/create', [RabProposalController::class, 'create'])->name('rab.create');
             Route::post('/rab', [RabProposalController::class, 'store'])->name('rab.store');
             Route::get('/rab/{id}', [RabProposalController::class, 'show'])->name('rab.show');
+            Route::post('/rab/{id}/resubmit', [RabProposalController::class, 'resubmit'])->name('rab.resubmit');
         });
 
     // === KAPRODI ===

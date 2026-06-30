@@ -13,11 +13,14 @@ class RabDetail extends Model
         'unit',
         'unit_price',
         'total_price',
+        'revision_flag',
+        'revision_reason',
     ];
 
     protected $casts = [
-        'unit_price' => 'decimal:2',
-        'total_price' => 'decimal:2',
+        'unit_price'    => 'decimal:2',
+        'total_price'   => 'decimal:2',
+        'revision_flag' => 'boolean',
     ];
 
     public function proposal()

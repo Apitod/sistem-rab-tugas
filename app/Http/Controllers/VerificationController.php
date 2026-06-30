@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 use App\Http\Requests\VerifyProposalRequest;
+use App\Models\RabDetail;
 use App\Models\RabProposal;
 use App\Services\RabWorkflowService;
 use Illuminate\Support\Facades\Storage;
@@ -21,21 +22,42 @@ class VerificationController extends Controller {
         $proposals = RabProposal::pendingDekan()->with('user')->latest()->get();
         return view('dashboard.dekan', compact('proposals'));
     }
-    public function verify(VerifyProposalRequest $request, string $id) {
-        $proposal = RabProposal::findOrFail($id);
-        $role = auth()->user()->role;
-        $verifierId = auth()->id();
-        $notes = $request->notes ?? '';
 
+    public function verify(VerifyProposalRequest $request, string $id) {
+        $proposal   = RabProposal::findOrFail($id);
+        $role       = auth()->user()->role;
+        $verifierId = auth()->id();
+        $notes      = $request->notes ?? '';
+
+        // ── Revisi per-item (Kaprodi) ────────────────────────────────────
         if ($request->action === 'revisi') {
-            $this->workflow->requestRevisi($proposal, $verifierId, $notes);
-            return back()->with('success', 'RAB dikembalikan untuk direvisi.');
+            $revisionItems = $request->revision_items ?? [];
+            $revisionCount = count($revisionItems);
+
+            // Tandai setiap item yang dicentang Kaprodi
+            foreach ($revisionItems as $item) {
+                RabDetail::where('id', $item['id'])
+                    ->where('rab_proposal_id', $proposal->id) // keamanan: pastikan item milik proposal ini
+                    ->update([
+                        'revision_flag'   => true,
+                        'revision_reason' => $item['reason'],
+                    ]);
+            }
+
+            // Buat catatan global yang informatif
+            $globalNote = "{$revisionCount} item perlu direvisi." . ($notes ? " Catatan: {$notes}" : '');
+            $this->workflow->requestRevisi($proposal, $verifierId, $globalNote);
+
+            return back()->with('success', "RAB dikembalikan untuk direvisi. {$revisionCount} item ditandai.");
         }
+
+        // ── Tolak ────────────────────────────────────────────────────────
         if ($request->action === 'tolak') {
             $this->workflow->tolak($proposal, $verifierId, $notes);
             return back()->with('success', 'RAB ditolak.');
         }
-        // verify
+
+        // ── Verifikasi / Setujui ─────────────────────────────────────────
         if ($role === 'kaprodi') {
             $this->workflow->verifyKaprodi($proposal, $verifierId, $notes);
         } elseif ($role === 'wd_keuangan') {
@@ -50,6 +72,7 @@ class VerificationController extends Controller {
             }
             $this->workflow->approveDekan($proposal, $verifierId, $request->rab_number ?? '', $signaturePath);
         }
+
         return back()->with('success', 'Verifikasi berhasil.');
     }
 }
