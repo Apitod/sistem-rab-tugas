@@ -82,6 +82,27 @@
     </div>
 
     {{-- ================================================================ --}}
+    {{-- NOMOR RAB (Transparansi — semua kecuali pengusul)                --}}
+    {{-- ================================================================ --}}
+    @if($role !== 'pengusul' && $proposal->rab_number)
+    <div class="bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-4 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+            <i class="fa-solid fa-hashtag text-emerald-600"></i>
+        </div>
+        <div>
+            <p class="text-xs font-medium text-emerald-600 uppercase tracking-wide">Nomor Surat RAB</p>
+            <p class="text-lg font-bold text-emerald-800 tracking-widest">{{ $proposal->rab_number }}</p>
+        </div>
+        <span class="ml-auto text-xs text-emerald-500 italic">Ditetapkan oleh Dekan</span>
+    </div>
+    @elseif($role !== 'pengusul' && in_array($proposal->status, ['pending_kaprodi','pending_wd','pending_dekan','revisi']))
+    <div class="bg-gray-50 border border-dashed border-gray-300 rounded-xl px-5 py-3 flex items-center gap-3 text-gray-400 text-sm">
+        <i class="fa-regular fa-clock"></i>
+        <span>Nomor RAB akan di-generate otomatis setelah disetujui Dekan.</span>
+    </div>
+    @endif
+
+    {{-- ================================================================ --}}
     {{-- TABEL RINCIAN ANGGARAN                                           --}}
     {{-- (Dibungkus form resubmit jika Pengusul & status revisi)          --}}
     {{-- ================================================================ --}}
@@ -350,26 +371,23 @@
     @endif
 
     {{-- ================================================================ --}}
-    {{-- AKSI DEKAN (tetap ada Nomor RAB & e-signature)                   --}}
+    {{-- AKSI DEKAN (e-signature, tanpa input Nomor RAB)                  --}}
     {{-- ================================================================ --}}
     @if($role === 'dekan' && $proposal->status === 'pending_dekan')
     <div class="bg-white rounded-xl shadow p-6">
         <h3 class="font-semibold text-gray-700 mb-4">Persetujuan Dekan</h3>
+        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700 flex items-center gap-2">
+            <i class="fa-solid fa-circle-info"></i>
+            Nomor RAB akan di-generate otomatis oleh sistem saat Anda menyetujui.
+        </div>
         <form method="POST" action="{{ route('dekan.rab.setujui', $proposal->id) }}" id="dekan-form">
             @csrf
             <input type="hidden" name="action" value="setujui">
             <input type="hidden" name="signature" id="signature-data">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nomor RAB</label>
-                    <input type="text" name="rab_number" placeholder="RAB/2024/001"
-                           class="w-full border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
-                    <input type="text" name="notes" placeholder="Catatan dekan (opsional)"
-                           class="w-full border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:outline-none">
-                </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
+                <input type="text" name="notes" placeholder="Catatan dekan (opsional)"
+                       class="w-full border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:outline-none">
             </div>
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Tanda Tangan Digital</label>

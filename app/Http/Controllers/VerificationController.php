@@ -70,7 +70,11 @@ class VerificationController extends Controller {
                 Storage::disk('public')->put($filename, $imgData);
                 $signaturePath = $filename;
             }
-            $this->workflow->approveDekan($proposal, $verifierId, $request->rab_number ?? '', $signaturePath);
+            try {
+                $this->workflow->approveDekan($proposal, $verifierId, $signaturePath);
+            } catch (\Throwable $e) {
+                return back()->with('error', 'Gagal menyetujui RAB: ' . $e->getMessage());
+            }
         }
 
         return back()->with('success', 'Verifikasi berhasil.');

@@ -10,7 +10,7 @@ class VerifyProposalRequest extends FormRequest {
         return [
             'action'                  => 'required|in:verify,revisi,tolak,setujui',
             'notes'                   => 'nullable|string|max:1000',
-            'rab_number'              => ($isDekan ? 'required' : 'nullable') . '|string|max:100',
+            'rab_number'              => 'nullable|string|max:100',
             'signature'               => 'nullable|string',
             // Validasi revisi per-item (wajib saat action=revisi)
             'revision_items'          => ($isRevisi ? 'required' : 'nullable') . '|array|min:1',
