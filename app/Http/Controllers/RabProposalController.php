@@ -7,40 +7,91 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class RabProposalController extends Controller {
+
     public function index() {
         $proposals = RabProposal::where('user_id', auth()->id())->latest()->get();
         return view('rab.index', compact('proposals'));
     }
+
     public function create() {
         return view('rab.create');
     }
+
     public function store(StoreRabProposalRequest $request) {
         $torPath = $request->file('tor_file')->store('tor', 'public');
         $proposal = RabProposal::create([
-            'user_id' => auth()->id(),
-            'title' => $request->title,
+            'user_id'       => auth()->id(),
+            'title'         => $request->title,
             'proposed_date' => $request->proposed_date,
             'tor_file_path' => $torPath,
-            'status' => 'pending_kaprodi',
+            'status'        => 'pending_kaprodi',
         ]);
         $totalBudget = 0;
         foreach ($request->items as $item) {
-            $totalPrice = $item['quantity'] * $item['unit_price'];
+            $totalPrice   = $item['quantity'] * $item['unit_price'];
             $totalBudget += $totalPrice;
             RabDetail::create([
                 'rab_proposal_id' => $proposal->id,
-                'item_name' => $item['item_name'],
-                'quantity' => $item['quantity'],
-                'unit' => $item['unit'],
-                'unit_price' => $item['unit_price'],
-                'total_price' => $totalPrice,
+                'item_name'       => $item['item_name'],
+                'quantity'        => $item['quantity'],
+                'unit'            => $item['unit'],
+                'unit_price'      => $item['unit_price'],
+                'total_price'     => $totalPrice,
             ]);
         }
         $proposal->update(['total_budget' => $totalBudget]);
         return redirect()->route('pengusul.rab.index')->with('success', 'RAB berhasil diajukan!');
     }
+
     public function show(string $id) {
         $proposal = RabProposal::with(['details','verificationLogs.verifier'])->findOrFail($id);
         return view('rab.show', compact('proposal'));
+    }
+
+    /**
+     * Pengusul mengajukan ulang RAB yang berstatus 'revisi'.
+     * Simpan perubahan item yang diedit, reset flag revisi, kembalikan ke pending_kaprodi.
+     */
+    public function resubmit(Request $request, string $id) {
+        $proposal = RabProposal::where('id', $id)
+            ->where('user_id', auth()->id())
+            ->where('status', 'revisi')
+            ->firstOrFail();
+
+        // Simpan perubahan item yang dikirim dari form
+        $totalBudget = 0;
+        foreach ($request->items ?? [] as $itemData) {
+            $detail = RabDetail::where('id', $itemData['id'])
+                ->where('rab_proposal_id', $proposal->id) // keamanan: pastikan item milik proposal ini
+                ->first();
+
+            if ($detail) {
+                $qty        = (int)   ($itemData['quantity']   ?? $detail->quantity);
+                $unitPrice  = (float) ($itemData['unit_price'] ?? $detail->unit_price);
+                $totalPrice = $qty * $unitPrice;
+                $totalBudget += $totalPrice;
+
+                $detail->update([
+                    'item_name'  => $itemData['item_name']  ?? $detail->item_name,
+                    'quantity'   => $qty,
+                    'unit'       => $itemData['unit']        ?? $detail->unit,
+                    'unit_price' => $unitPrice,
+                    'total_price'=> $totalPrice,
+                    // Reset flag revisi per-item ini
+                    'revision_flag'   => false,
+                    'revision_reason' => null,
+                ]);
+            }
+        }
+
+        // Update total anggaran proposal
+        $proposal->update([
+            'total_budget' => $totalBudget > 0 ? $totalBudget : $proposal->total_budget,
+            'status'       => 'pending_kaprodi',
+        ]);
+
+        return redirect()
+            ->route('pengusul.rab.show', $proposal->id)
+            ->with('success', 'RAB berhasil diajukan ulang dan menunggu verifikasi Kaprodi.');
     }
 }
