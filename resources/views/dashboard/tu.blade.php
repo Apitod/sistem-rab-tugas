@@ -4,8 +4,8 @@
 
 @section('content')
 @php
-    $approved = \App\Models\RabProposal::where('status','approved')->count();
-    $thisMonth = \App\Models\RabProposal::where('status','approved')
+    $approved = \App\Models\RabProposal::where('status','disetujui')->count();
+    $thisMonth = \App\Models\RabProposal::where('status','disetujui')
         ->whereMonth('updated_at', now()->month)->sum('total_budget');
 @endphp
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -35,7 +35,11 @@
         <div class="space-y-3">
             <a href="{{ route('tu.laporan.index') }}" class="flex items-center space-x-3 p-3 rounded-lg border hover:border-secondary hover:bg-blue-50 transition-colors">
                 <i class="fa-solid fa-file-pdf text-red-500 text-lg w-6"></i>
-                <span class="text-sm font-medium text-gray-700">Lihat & Export Laporan</span>
+                <span class="text-sm font-medium text-gray-700">Lihat &amp; Export Laporan</span>
+            </a>
+            <a href="{{ route('tu.kwitansi.index') }}" class="flex items-center space-x-3 p-3 rounded-lg border hover:border-secondary hover:bg-blue-50 transition-colors">
+                <i class="fa-solid fa-receipt text-emerald-500 text-lg w-6"></i>
+                <span class="text-sm font-medium text-gray-700">Manajemen Kwitansi</span>
             </a>
             <a href="{{ route('tu.aset.index') }}" class="flex items-center space-x-3 p-3 rounded-lg border hover:border-secondary hover:bg-blue-50 transition-colors">
                 <i class="fa-solid fa-boxes-stacked text-yellow-500 text-lg w-6"></i>

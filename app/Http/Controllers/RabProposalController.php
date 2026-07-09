@@ -4,6 +4,7 @@ use App\Http\Requests\StoreRabProposalRequest;
 use App\Models\RabProposal;
 use App\Models\RabDetail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class RabProposalController extends Controller {
@@ -50,7 +51,7 @@ class RabProposalController extends Controller {
 
     /**
      * Pengusul mengajukan ulang RAB yang berstatus 'revisi'.
-     * Simpan perubahan item yang diedit, reset flag revisi, kembalikan ke pending_kaprodi.
+     * Mendukung: update item existing, tambah item baru, item locked (tidak berubah).
      */
     public function resubmit(Request $request, string $id) {
         $proposal = RabProposal::where('id', $id)
@@ -58,40 +59,97 @@ class RabProposalController extends Controller {
             ->where('status', 'revisi')
             ->firstOrFail();
 
-        // Simpan perubahan item yang dikirim dari form
         $totalBudget = 0;
-        foreach ($request->items ?? [] as $itemData) {
-            $detail = RabDetail::where('id', $itemData['id'])
-                ->where('rab_proposal_id', $proposal->id) // keamanan: pastikan item milik proposal ini
-                ->first();
 
-            if ($detail) {
-                $qty        = (int)   ($itemData['quantity']   ?? $detail->quantity);
-                $unitPrice  = (float) ($itemData['unit_price'] ?? $detail->unit_price);
+        foreach ($request->items ?? [] as $itemData) {
+            $hasId = !empty($itemData['id']);
+
+            if ($hasId) {
+                // ── Item existing: update ──────────────────────────────
+                $detail = RabDetail::where('id', $itemData['id'])
+                    ->where('rab_proposal_id', $proposal->id)
+                    ->first();
+
+                if ($detail) {
+                    $qty        = max(1, (int)   ($itemData['quantity']   ?? $detail->quantity));
+                    $unitPrice  = max(0, (float) ($itemData['unit_price'] ?? $detail->unit_price));
+                    $totalPrice = $qty * $unitPrice;
+                    $totalBudget += $totalPrice;
+
+                    $detail->update([
+                        'item_name'       => $itemData['item_name']  ?? $detail->item_name,
+                        'quantity'        => $qty,
+                        'unit'            => $itemData['unit']        ?? $detail->unit,
+                        'unit_price'      => $unitPrice,
+                        'total_price'     => $totalPrice,
+                        'revision_flag'   => false,
+                        'revision_reason' => null,
+                    ]);
+                }
+            } else {
+                // ── Item baru: create ──────────────────────────────────
+                $itemName  = trim($itemData['item_name'] ?? '');
+                if ($itemName === '') continue; // skip baris kosong
+
+                $qty        = max(1, (int)   ($itemData['quantity']   ?? 1));
+                $unitPrice  = max(0, (float) ($itemData['unit_price'] ?? 0));
                 $totalPrice = $qty * $unitPrice;
                 $totalBudget += $totalPrice;
 
-                $detail->update([
-                    'item_name'  => $itemData['item_name']  ?? $detail->item_name,
-                    'quantity'   => $qty,
-                    'unit'       => $itemData['unit']        ?? $detail->unit,
-                    'unit_price' => $unitPrice,
-                    'total_price'=> $totalPrice,
-                    // Reset flag revisi per-item ini
+                RabDetail::create([
+                    'rab_proposal_id' => $proposal->id,
+                    'item_name'       => $itemName,
+                    'quantity'        => $qty,
+                    'unit'            => trim($itemData['unit'] ?? ''),
+                    'unit_price'      => $unitPrice,
+                    'total_price'     => $totalPrice,
                     'revision_flag'   => false,
                     'revision_reason' => null,
                 ]);
             }
         }
 
-        // Update total anggaran proposal
+        // Hitung ulang total dari DB (lebih akurat, termasuk item yang tidak berubah)
+        $realTotal = DB::table('rab_details')
+            ->where('rab_proposal_id', $proposal->id)
+            ->sum(DB::raw('quantity * unit_price'));
+
         $proposal->update([
-            'total_budget' => $totalBudget > 0 ? $totalBudget : $proposal->total_budget,
+            'total_budget' => $realTotal > 0 ? $realTotal : $totalBudget,
             'status'       => 'pending_kaprodi',
         ]);
 
         return redirect()
             ->route('pengusul.rab.show', $proposal->id)
             ->with('success', 'RAB berhasil diajukan ulang dan menunggu verifikasi Kaprodi.');
+    }
+
+    /**
+     * Pengusul menghapus item yang bertanda revisi dari proposal berstatus 'revisi'.
+     */
+    public function deleteRevisionItem(Request $request, string $id, string $itemId) {
+        $proposal = RabProposal::where('id', $id)
+            ->where('user_id', auth()->id())
+            ->where('status', 'revisi')
+            ->firstOrFail();
+
+        $detail = RabDetail::where('id', $itemId)
+            ->where('rab_proposal_id', $proposal->id)
+            ->where('revision_flag', true) // hanya item yang ditandai revisi yang boleh dihapus
+            ->firstOrFail();
+
+        // Pastikan minimal masih ada 1 item setelah penghapusan
+        $remainingCount = $proposal->details()->count();
+        if ($remainingCount <= 1) {
+            return back()->with('error', 'Tidak bisa menghapus item terakhir. RAB harus memiliki minimal 1 item.');
+        }
+
+        $detail->delete();
+
+        // Hitung ulang total anggaran
+        $newTotal = $proposal->details()->sum(\DB::raw('quantity * unit_price'));
+        $proposal->update(['total_budget' => $newTotal]);
+
+        return back()->with('success', 'Item berhasil dihapus.');
     }
 }

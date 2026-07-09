@@ -102,13 +102,37 @@
     </div>
     @endif
 
+    {{-- Banner Kwitansi untuk Pengusul (setelah disetujui) --}}
+    @if($role === 'pengusul' && $proposal->status === 'disetujui')
+    <div class="bg-emerald-50 border border-emerald-300 rounded-xl px-5 py-4 flex items-center gap-4">
+        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+            <i class="fa-solid fa-file-invoice text-emerald-600 text-lg"></i>
+        </div>
+        <div class="flex-1">
+            <p class="text-sm font-semibold text-emerald-800">
+                <i class="fa-solid fa-circle-check mr-1"></i> RAB Anda Telah Disetujui &amp; Dicairkan
+            </p>
+            <p class="text-xs text-emerald-700 mt-0.5">
+                Kwitansi resmi sebagai bukti sah pencairan anggaran sudah tersedia. Simpan atau cetak sebagai arsip.
+            </p>
+        </div>
+        <a href="{{ route('pengusul.kwitansi.show', $proposal->id) }}"
+           class="flex-shrink-0 flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+            <i class="fa-solid fa-file-invoice"></i> Lihat Kwitansi
+        </a>
+    </div>
+    @endif
+
     {{-- ================================================================ --}}
     {{-- TABEL RINCIAN ANGGARAN                                           --}}
     {{-- (Dibungkus form resubmit jika Pengusul & status revisi)          --}}
     {{-- ================================================================ --}}
+    {{-- Form resubmit: TIDAK membungkus tabel untuk menghindari nested form --}}
     @if($role === 'pengusul' && $proposal->status === 'revisi')
     <form method="POST" action="{{ route('pengusul.rab.resubmit', $proposal->id) }}" id="form-resubmit">
     @csrf
+    {{-- Placeholder: hidden inputs akan di-inject JS saat submit --}}
+    </form>
     @endif
 
     <div class="bg-white rounded-xl shadow p-6">
@@ -144,6 +168,9 @@
                         <th class="text-center px-4 py-3">Satuan</th>
                         <th class="text-right px-4 py-3">Harga Satuan</th>
                         <th class="text-right px-4 py-3">Total</th>
+                        @if($role === 'pengusul' && $proposal->status === 'revisi')
+                        <th class="text-center px-3 py-3 w-12">Hapus</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -151,7 +178,14 @@
                     {{-- ─── Baris item ─── --}}
                     <tr class="item-row transition-colors duration-150
                         @if($d->revision_flag && $role !== 'kaprodi') bg-orange-50 @else hover:bg-gray-50 @endif"
-                        data-item-id="{{ $d->id }}">
+                        data-item-id="{{ $d->id }}"
+                        @if($role === 'pengusul' && $proposal->status === 'revisi' && !$d->revision_flag)
+                        data-locked="1"
+                        data-item-name="{{ addslashes($d->item_name) }}"
+                        data-quantity="{{ $d->quantity }}"
+                        data-unit="{{ addslashes($d->unit) }}"
+                        data-unit-price="{{ (int) $d->unit_price }}"
+                        @endif>
 
                         {{-- Checkbox (hanya Kaprodi) — tanpa name, JS yang akan collect --}}
                         @if($role === 'kaprodi' && $proposal->status === 'pending_kaprodi')
@@ -180,7 +214,6 @@
                                        required
                                        class="w-full border border-orange-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none bg-white">
                                 <input type="hidden" name="items[{{ $i }}][id]" value="{{ $d->id }}">
-                                {{-- Tampilkan alasan di bawah input --}}
                                 @if($d->revision_reason)
                                 <div class="mt-1.5 flex items-start gap-1.5 text-orange-700 text-xs bg-orange-50 border border-orange-200 rounded-md px-2.5 py-1.5">
                                     <i class="fa-solid fa-comment-dots flex-shrink-0 mt-0.5"></i>
@@ -188,24 +221,15 @@
                                 </div>
                                 @endif
                             @else
-                                {{-- Item normal: read-only --}}
                                 <div class="flex items-center gap-2">
                                     {{ $d->item_name }}
                                     @if($role === 'pengusul' && $proposal->status === 'revisi' && !$d->revision_flag)
                                     <span class="text-xs text-gray-400"><i class="fa-solid fa-lock"></i></span>
                                     @endif
                                 </div>
-                                @if($role === 'pengusul' && $proposal->status === 'revisi')
-                                <input type="hidden" name="items[{{ $i }}][id]" value="{{ $d->id }}">
-                                <input type="hidden" name="items[{{ $i }}][item_name]" value="{{ $d->item_name }}">
-                                <input type="hidden" name="items[{{ $i }}][quantity]" value="{{ $d->quantity }}">
-                                <input type="hidden" name="items[{{ $i }}][unit]" value="{{ $d->unit }}">
-                                <input type="hidden" name="items[{{ $i }}][unit_price]" value="{{ $d->unit_price }}">
-                                @endif
                             @endif
                         </td>
 
-                        {{-- ─── Qty ─── --}}
                         <td class="px-4 py-3 text-center">
                             @if($role === 'pengusul' && $proposal->status === 'revisi' && $d->revision_flag)
                                 <input type="number"
@@ -256,6 +280,23 @@
                                 Rp {{ number_format($d->total_price, 0, ',', '.') }}
                             @endif
                         </td>
+
+                        {{-- ─── Tombol Hapus (hanya Pengusul, mode revisi, item revision_flag) ─── --}}
+                        @if($role === 'pengusul' && $proposal->status === 'revisi')
+                        <td class="px-3 py-3 text-center">
+                            @if($d->revision_flag)
+                            {{-- Form TERPISAH di LUAR tabel – link via id, bukan nested --}}
+                            <button type="button"
+                                    onclick="deleteItem('{{ route('pengusul.rab.item.delete', [$proposal->id, $d->id]) }}', '{{ addslashes($d->item_name) }}')"
+                                    class="inline-flex items-center gap-1 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 hover:border-red-400 px-2 py-1.5 rounded-lg text-xs transition-colors"
+                                    title="Hapus item ini">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                            @else
+                            <span class="text-gray-200 text-xs"><i class="fa-solid fa-lock"></i></span>
+                            @endif
+                        </td>
+                        @endif
                     </tr>
 
                     {{-- ─── Baris alasan revisi (hanya Kaprodi, toggle via JS) ─── --}}
@@ -279,7 +320,7 @@
                 </tbody>
                 <tfoot>
                     <tr class="border-t-2 border-gray-300 bg-gray-50">
-                        <td colspan="{{ ($role === 'kaprodi' && $proposal->status === 'pending_kaprodi') ? 6 : 5 }}"
+                        <td colspan="{{ ($role === 'kaprodi' && $proposal->status === 'pending_kaprodi') ? 6 : ($role === 'pengusul' && $proposal->status === 'revisi' ? 6 : 5) }}"
                             class="px-4 py-3 text-right font-bold text-gray-700">TOTAL ANGGARAN</td>
                         <td class="px-4 py-3 text-right font-bold text-secondary text-base">
                             <span id="grand-total">Rp {{ number_format($proposal->total_budget, 0, ',', '.') }}</span>
@@ -290,7 +331,98 @@
         </div>
     </div>
 
+    {{-- ================================================================ --}}
+    {{-- TAMBAH ITEM BARU (hanya saat mode revisi oleh Pengusul)          --}}
+    {{-- ================================================================ --}}
     @if($role === 'pengusul' && $proposal->status === 'revisi')
+    <div class="bg-white rounded-xl shadow p-6" id="section-tambah-item">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-700 flex items-center gap-2">
+                <i class="fa-solid fa-circle-plus text-secondary"></i>
+                Tambah Item Baru
+            </h3>
+            <button type="button" id="btn-add-row"
+                    onclick="addNewItemRow()"
+                    class="flex items-center gap-1.5 bg-secondary text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700 transition-colors">
+                <i class="fa-solid fa-plus"></i> Tambah Baris
+            </button>
+        </div>
+
+        {{-- Container baris item baru --}}
+        <div id="new-items-container" class="space-y-3">
+            {{-- Baris item baru akan di-inject oleh JS --}}
+            <div id="new-items-empty" class="text-center py-6 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+                <i class="fa-solid fa-inbox text-2xl mb-2 block text-gray-300"></i>
+                Belum ada item baru ditambahkan.<br>
+                Klik <strong>"Tambah Baris"</strong> untuk menambah item baru.
+            </div>
+        </div>
+
+        {{-- Template baris (disembunyikan, di-clone via JS) --}}
+        <template id="new-item-row-template">
+            <div class="new-item-row bg-blue-50 border border-blue-200 rounded-xl p-4 relative">
+                <button type="button"
+                        onclick="removeNewItemRow(this)"
+                        class="absolute top-3 right-3 text-red-400 hover:text-red-600 text-xs transition-colors"
+                        title="Hapus baris ini">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+                <div class="grid grid-cols-12 gap-3 items-end">
+                    {{-- Nama Item --}}
+                    <div class="col-span-12 sm:col-span-4">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Nama Item <span class="text-red-500">*</span></label>
+                        <input type="text"
+                               placeholder="Nama item / kegiatan"
+                               data-field="item_name"
+                               class="new-item-name w-full border border-blue-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white">
+                    </div>
+                    {{-- Qty --}}
+                    <div class="col-span-4 sm:col-span-2">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Qty <span class="text-red-500">*</span></label>
+                        <input type="number"
+                               placeholder="1"
+                               min="1" value="1"
+                               data-field="quantity"
+                               class="new-item-qty w-full border border-blue-300 rounded-lg px-3 py-2 text-sm text-center focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white">
+                    </div>
+                    {{-- Satuan --}}
+                    <div class="col-span-4 sm:col-span-2">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Satuan <span class="text-red-500">*</span></label>
+                        <input type="text"
+                               placeholder="unit"
+                               data-field="unit"
+                               class="new-item-unit w-full border border-blue-300 rounded-lg px-3 py-2 text-sm text-center focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white">
+                    </div>
+                    {{-- Harga Satuan --}}
+                    <div class="col-span-12 sm:col-span-3">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Harga Satuan (Rp) <span class="text-red-500">*</span></label>
+                        <input type="number"
+                               placeholder="0"
+                               min="0" value="0"
+                               data-field="unit_price"
+                               class="new-item-price w-full border border-blue-300 rounded-lg px-3 py-2 text-sm text-right focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white">
+                    </div>
+                    {{-- Total (read-only preview) --}}
+                    <div class="col-span-12 sm:col-span-1">
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Total</label>
+                        <p class="new-item-total text-sm font-semibold text-secondary text-right py-2">Rp 0</p>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <p class="text-xs text-gray-400 mt-3">
+            <i class="fa-solid fa-circle-info mr-1"></i>
+            Item baru akan langsung ditambahkan ke RAB saat Anda mengklik "Ajukan Ulang".
+        </p>
+    </div>
+    @endif
+
+    {{-- Hidden form DELETE untuk hapus item (di luar tabel, tidak nested) --}}
+    @if($role === 'pengusul' && $proposal->status === 'revisi')
+    <form method="POST" id="form-delete-item" style="display:none">
+        @csrf
+        @method('DELETE')
     </form>
     @endif
 
@@ -598,7 +730,7 @@
 </script>
 @endif
 
-{{-- JS: Live Total Calculator untuk Pengusul saat mode edit revisi --}}
+{{-- JS: Live Total Calculator + Resubmit Handler + Delete Item --}}
 @if($role === 'pengusul' && $proposal->status === 'revisi')
 <script>
 (function () {
@@ -608,9 +740,9 @@
 
     function recalcGrandTotal() {
         var grand = 0;
-        // Ambil semua span total per-item (yang editable)
+        // Item editable (revision_flag=true): dari inputs
         document.querySelectorAll('[id^="total-"]').forEach(function(span) {
-            var idx = span.id.replace('total-', '');
+            var idx     = span.id.replace('total-', '');
             var qtyEl   = document.querySelector('.item-qty[data-index="' + idx + '"]');
             var priceEl = document.querySelector('.item-price[data-index="' + idx + '"]');
             if (qtyEl && priceEl) {
@@ -619,35 +751,191 @@
                 grand += total;
             }
         });
-        // Tambahkan total item yang tidak diedit (dari hidden inputs)
-        document.querySelectorAll('input[name$="[unit_price]"][type="hidden"]').forEach(function(priceInput) {
-            var name = priceInput.name; // items[i][unit_price]
-            var match = name.match(/items\[(\d+)\]/);
-            if (!match) return;
-            var idx = match[1];
-            // Hanya hitung jika tidak ada input editable untuk index ini
-            var hasEditable = document.querySelector('.item-price[data-index="' + idx + '"]');
-            if (!hasEditable) {
-                var qtyHidden   = document.querySelector('input[name="items[' + idx + '][quantity]"]');
-                var priceHidden = document.querySelector('input[name="items[' + idx + '][unit_price]"]');
-                if (qtyHidden && priceHidden) {
-                    grand += (parseFloat(qtyHidden.value) || 0) * (parseFloat(priceHidden.value) || 0);
-                }
-            }
+        // Item locked (revision_flag=false): dari data-* di <tr>
+        document.querySelectorAll('.item-row[data-locked="1"]').forEach(function(tr) {
+            grand += (parseFloat(tr.dataset.quantity) || 0) * (parseFloat(tr.dataset.unitPrice) || 0);
+        });
+        // Item baru: dari baris tambah-item
+        document.querySelectorAll('.new-item-row').forEach(function(row) {
+            var qty   = parseFloat(row.querySelector('[data-field="quantity"]')?.value) || 0;
+            var price = parseFloat(row.querySelector('[data-field="unit_price"]')?.value) || 0;
+            var total = qty * price;
+            var totalEl = row.querySelector('.new-item-total');
+            if (totalEl) totalEl.textContent = formatRupiah(total);
+            grand += total;
         });
         var grandEl = document.getElementById('grand-total');
         if (grandEl) grandEl.textContent = formatRupiah(grand);
     }
 
-    // Pasang event listener ke semua qty & price editable
     document.querySelectorAll('.item-qty, .item-price').forEach(function(input) {
         input.addEventListener('input', recalcGrandTotal);
     });
-
-    // Hitung sekali saat load
     recalcGrandTotal();
+
+    // ─── Resubmit: kumpulkan semua item lalu inject ke form ──────────────
+    var formResubmit = document.getElementById('form-resubmit');
+    if (formResubmit) {
+        formResubmit.addEventListener('submit', function(e) {
+            // Validasi item baru: nama wajib diisi jika ada baris
+            var newRows = document.querySelectorAll('.new-item-row');
+            var hasEmptyName = false;
+            newRows.forEach(function(row) {
+                var nameEl = row.querySelector('[data-field="item_name"]');
+                if (nameEl && nameEl.value.trim() === '') {
+                    hasEmptyName = true;
+                    nameEl.classList.add('border-red-400', 'ring-2', 'ring-red-300');
+                    nameEl.focus();
+                }
+            });
+            if (hasEmptyName) {
+                e.preventDefault();
+                alert('Isi nama item untuk semua baris item baru, atau hapus baris yang kosong.');
+                return;
+            }
+
+            if (!confirm('Yakin ingin mengajukan ulang RAB ini?')) {
+                e.preventDefault();
+                return;
+            }
+            // Bersihkan injected inputs sebelumnya
+            this.querySelectorAll('input[name^="items"]').forEach(function(el) { el.remove(); });
+            var seq = 0;
+
+            function addHidden(name, val) {
+                var inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = name; inp.value = val;
+                formResubmit.appendChild(inp);
+            }
+
+            // 1. Item editable (revision_flag=true)
+            document.querySelectorAll('.item-row:not([data-locked])').forEach(function(tr) {
+                var itemId  = tr.dataset.itemId;
+                var nameEl  = tr.querySelector('input[name$="[item_name]"]');
+                if (!nameEl) return;
+                var qtyEl   = tr.querySelector('.item-qty');
+                var unitEl  = tr.querySelector('input[name$="[unit]"]:not(.item-qty):not(.item-price)');
+                var priceEl = tr.querySelector('.item-price');
+                addHidden('items[' + seq + '][id]',         itemId);
+                addHidden('items[' + seq + '][item_name]',  nameEl  ? nameEl.value  : '');
+                addHidden('items[' + seq + '][quantity]',   qtyEl   ? qtyEl.value   : 1);
+                addHidden('items[' + seq + '][unit]',       unitEl  ? unitEl.value  : '');
+                addHidden('items[' + seq + '][unit_price]', priceEl ? priceEl.value : 0);
+                seq++;
+            });
+
+            // 2. Item locked (tidak dapat diedit)
+            document.querySelectorAll('.item-row[data-locked="1"]').forEach(function(tr) {
+                addHidden('items[' + seq + '][id]',         tr.dataset.itemId);
+                addHidden('items[' + seq + '][item_name]',  tr.dataset.itemName  || '');
+                addHidden('items[' + seq + '][quantity]',   tr.dataset.quantity  || 1);
+                addHidden('items[' + seq + '][unit]',       tr.dataset.unit      || '');
+                addHidden('items[' + seq + '][unit_price]', tr.dataset.unitPrice || 0);
+                seq++;
+            });
+
+            // 3. Item BARU (tanpa id — akan di-create di backend)
+            document.querySelectorAll('.new-item-row').forEach(function(row) {
+                var nameVal  = (row.querySelector('[data-field="item_name"]')?.value  || '').trim();
+                var qtyVal   =  row.querySelector('[data-field="quantity"]')?.value   || 1;
+                var unitVal  = (row.querySelector('[data-field="unit"]')?.value       || '').trim();
+                var priceVal =  row.querySelector('[data-field="unit_price"]')?.value || 0;
+                if (nameVal === '') return; // skip kosong (seharusnya sudah divalidasi di atas)
+                // TIDAK kirim items[seq][id] → backend mendeteksi sebagai item baru
+                addHidden('items[' + seq + '][item_name]',  nameVal);
+                addHidden('items[' + seq + '][quantity]',   qtyVal);
+                addHidden('items[' + seq + '][unit]',       unitVal);
+                addHidden('items[' + seq + '][unit_price]', priceVal);
+                seq++;
+            });
+        });
+    }
 })();
+
+// ── Hapus item via form tersembunyi di luar tabel ─────────────────────
+function deleteItem(actionUrl, itemName) {
+    if (!confirm('Yakin ingin menghapus item "' + itemName + '"? Tindakan ini tidak bisa dibatalkan.')) return;
+    var form = document.getElementById('form-delete-item');
+    form.action = actionUrl;
+    form.submit();
+}
+
+// ── Tambah baris item baru ─────────────────────────────────────────────
+function addNewItemRow() {
+    var container = document.getElementById('new-items-container');
+    var emptyNote = document.getElementById('new-items-empty');
+    var template  = document.getElementById('new-item-row-template');
+    if (!template) return;
+
+    // Sembunyikan placeholder kosong
+    if (emptyNote) emptyNote.style.display = 'none';
+
+    // Clone template
+    var clone = template.content.cloneNode(true);
+    var row   = clone.querySelector('.new-item-row');
+
+    // Pasang event listener live-calc untuk baris ini
+    var qtyInput   = row.querySelector('[data-field="quantity"]');
+    var priceInput = row.querySelector('[data-field="unit_price"]');
+    function updateRowTotal() {
+        var qty   = parseFloat(qtyInput.value)   || 0;
+        var price = parseFloat(priceInput.value) || 0;
+        var total = qty * price;
+        row.querySelector('.new-item-total').textContent =
+            'Rp ' + Math.round(total).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        // Update grand total juga
+        updateGrandTotalFromAll();
+    }
+    qtyInput.addEventListener('input', updateRowTotal);
+    priceInput.addEventListener('input', updateRowTotal);
+
+    // Hilangkan highlight merah saat user mulai mengetik
+    var nameInput = row.querySelector('[data-field="item_name"]');
+    nameInput.addEventListener('input', function() {
+        this.classList.remove('border-red-400', 'ring-2', 'ring-red-300');
+    });
+
+    container.appendChild(clone);
+}
+
+function removeNewItemRow(btn) {
+    var row = btn.closest('.new-item-row');
+    if (row) {
+        row.remove();
+        // Tampilkan kembali placeholder jika tidak ada baris tersisa
+        var container = document.getElementById('new-items-container');
+        var emptyNote = document.getElementById('new-items-empty');
+        if (emptyNote && container.querySelectorAll('.new-item-row').length === 0) {
+            emptyNote.style.display = '';
+        }
+        updateGrandTotalFromAll();
+    }
+}
+
+function updateGrandTotalFromAll() {
+    var grand = 0;
+    // Item editable
+    document.querySelectorAll('[id^="total-"]').forEach(function(span) {
+        var idx     = span.id.replace('total-', '');
+        var qtyEl   = document.querySelector('.item-qty[data-index="' + idx + '"]');
+        var priceEl = document.querySelector('.item-price[data-index="' + idx + '"]');
+        if (qtyEl && priceEl) grand += (parseFloat(qtyEl.value) || 0) * (parseFloat(priceEl.value) || 0);
+    });
+    // Item locked
+    document.querySelectorAll('.item-row[data-locked="1"]').forEach(function(tr) {
+        grand += (parseFloat(tr.dataset.quantity) || 0) * (parseFloat(tr.dataset.unitPrice) || 0);
+    });
+    // Item baru
+    document.querySelectorAll('.new-item-row').forEach(function(row) {
+        grand += (parseFloat(row.querySelector('[data-field="quantity"]')?.value) || 0)
+               * (parseFloat(row.querySelector('[data-field="unit_price"]')?.value) || 0);
+    });
+    var grandEl = document.getElementById('grand-total');
+    if (grandEl) grandEl.textContent = 'Rp ' + Math.round(grand).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
 </script>
 @endif
+
 @endsection
+
 

@@ -49,6 +49,7 @@
                         <th class="text-left px-4 py-3">Tgl Diajukan</th>
                         <th class="text-right px-4 py-3">Total Anggaran</th>
                         <th class="text-center px-4 py-3">Detail</th>
+                        <th class="text-center px-4 py-3">Kwitansi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -62,9 +63,15 @@
                         <td class="px-4 py-3 text-center">
                             <button onclick="toggleDetail('detail-{{ $p->id }}')" class="text-secondary hover:underline text-xs">Lihat</button>
                         </td>
+                        <td class="px-4 py-3 text-center">
+                            <a href="{{ route('tu.kwitansi.show', $p->id) }}"
+                               class="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 px-2 py-1 rounded text-xs transition-colors">
+                                <i class="fa-solid fa-receipt"></i> Kwitansi
+                            </a>
+                        </td>
                     </tr>
                     <tr id="detail-{{ $p->id }}" class="hidden bg-gray-50">
-                        <td colspan="6" class="px-8 py-4">
+                        <td colspan="7" class="px-8 py-4">
                             <table class="min-w-full text-xs">
                                 <thead><tr class="text-gray-400 uppercase">
                                     <th class="text-left py-1">Item</th>

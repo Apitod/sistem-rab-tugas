@@ -6,6 +6,7 @@ use App\Http\Controllers\RabProposalController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\KwitansiController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -36,6 +37,8 @@ Route::middleware('auth')->group(function () {
             Route::post('/rab', [RabProposalController::class, 'store'])->name('rab.store');
             Route::get('/rab/{id}', [RabProposalController::class, 'show'])->name('rab.show');
             Route::post('/rab/{id}/resubmit', [RabProposalController::class, 'resubmit'])->name('rab.resubmit');
+            Route::delete('/rab/{id}/item/{itemId}', [RabProposalController::class, 'deleteRevisionItem'])->name('rab.item.delete');
+            Route::get('/kwitansi/{id}', [KwitansiController::class, 'showPengusul'])->name('kwitansi.show');
         });
 
     // === KAPRODI ===
@@ -75,6 +78,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/laporan/export-pdf', [ReportController::class, 'exportPdf'])->name('laporan.pdf');
             Route::get('/laporan/export-excel', [ReportController::class, 'exportExcel'])->name('laporan.excel');
             Route::get('/aset', fn() => view('aset.index'))->name('aset.index');
+            Route::get('/kwitansi', [KwitansiController::class, 'index'])->name('kwitansi.index');
+            Route::get('/kwitansi/{id}', [KwitansiController::class, 'show'])->name('kwitansi.show');
+            Route::post('/kwitansi/{id}/terbitkan', [KwitansiController::class, 'terbitkan'])->name('kwitansi.terbitkan');
+            Route::post('/kwitansi/{id}/kirim', [KwitansiController::class, 'kirim'])->name('kwitansi.kirim');
         });
 
     // === SHARED (semua role) ===
